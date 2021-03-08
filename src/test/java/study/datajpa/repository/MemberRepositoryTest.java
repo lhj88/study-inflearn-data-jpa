@@ -14,7 +14,9 @@ import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
+import javax.persistence.EntityManager;
 import javax.persistence.NoResultException;
+import javax.persistence.PersistenceContext;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +30,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class MemberRepositoryTest {
     @Autowired MemberRepository memberRepository;
     @Autowired TeamRepository teamRepository;
+    @PersistenceContext
+    EntityManager em;
 
     @Test
     public void testMember(){
@@ -209,5 +213,57 @@ class MemberRepositoryTest {
         //assertThat(slice.getTotalPages()).isEqualTo(3);
         assertThat(slice.isFirst()).isTrue();
         assertThat(slice.hasNext()).isTrue();
+    }
+
+    @Test
+    public void bulkUpdate(){
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 12));
+        memberRepository.save(new Member("member3", 14));
+        memberRepository.save(new Member("member4", 16));
+        memberRepository.save(new Member("member5", 18));
+        memberRepository.save(new Member("member6", 20));
+        memberRepository.save(new Member("member7", 22));
+        memberRepository.save(new Member("member8", 24));
+
+        // 영속성 컨텍스트가 깨짐
+        int resultCount = memberRepository.bulkAgePlus(20);
+
+        // 영속성 컨텍스트 초기화
+        //em.flush();
+        //em.clear();
+
+        assertThat(resultCount).isEqualTo(3);
+    }
+    
+    @Test
+    public void findMemberLazy(){
+        //given
+        // member1->teamA
+        // member2->teamB
+
+        Team teamA = new Team("teamA");
+        Team teamB = new Team("teamB");
+        teamRepository.save(teamA);
+        teamRepository.save(teamB);
+
+        Member member1 = new Member("member1", 10, teamA);
+        Member member2 = new Member("member2", 10, teamB);
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+        
+        em.flush();
+        em.clear();
+        
+        //when
+        List<Member> members = memberRepository.findAll();
+        //List<Member> members = memberRepository.findMemberFetchJoin();
+        //List<Member> member = memberRepository.findEntityGraphByUsername("member1");
+
+        for (Member member : members) {
+            System.out.println("member.getUsername() = " + member.getUsername());
+            System.out.println("member.teamClass = " + member.getTeam().getClass());
+            System.out.println("member.getTeam().getName() = " + member.getTeam().getName());
+        }
     }
 }
